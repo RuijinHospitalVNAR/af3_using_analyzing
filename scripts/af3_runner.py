@@ -58,12 +58,15 @@ def validate_json_file(json_path: str) -> bool:
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
-        # 检查必需字段
-        required_fields = ['sequences']
+        # 检查必需字段（AF3 官方输入）
+        required_fields = ['sequences', 'dialect', 'version']
         for field in required_fields:
             if field not in data:
                 logging.error(f"JSON文件缺少必需字段: {field}")
                 return False
+        if data.get('dialect') != 'alphafold3':
+            logging.error("dialect 必须为 'alphafold3'")
+            return False
         
         # 检查序列格式
         sequences = data['sequences']
@@ -76,19 +79,26 @@ def validate_json_file(json_path: str) -> bool:
                 logging.error(f"序列 {i} 格式错误")
                 return False
             
-            # 检查蛋白质序列
+            # 检查蛋白质或RNA序列（最常见为 protein）
             if 'protein' in seq:
                 protein = seq['protein']
                 if 'sequence' not in protein:
                     logging.error(f"序列 {i} 缺少sequence字段")
                     return False
-                
-                # 验证氨基酸序列
-                sequence = protein['sequence']
+                # 验证氨基酸序列（允许大写）
+                sequence = str(protein['sequence']).upper()
                 valid_aa = set("ACDEFGHIKLMNPQRSTVWY")
                 if not all(aa in valid_aa for aa in sequence):
                     logging.error(f"序列 {i} 包含无效氨基酸")
                     return False
+            elif 'rna' in seq:
+                rna = seq['rna']
+                if 'sequence' not in rna:
+                    logging.error(f"RNA 序列 {i} 缺少sequence字段")
+                    return False
+            else:
+                logging.error(f"序列 {i} 既不包含 protein 也不包含 rna 字段")
+                return False
         
         logging.debug(f"JSON文件验证通过: {json_path}")
         return True
@@ -102,11 +112,15 @@ def validate_json_file(json_path: str) -> bool:
 
 
 def run_single_prediction(
-    json_file: str, 
-    output_dir: str, 
+    json_file: str,
+    output_dir: str,
     af3_script: str,
-    max_template_date: str = "3000-12-01",
-    gpu_id: Optional[int] = None
+    model_dir: str,
+    public_db_dir: Optional[str] = None,
+    run_data_pipeline: bool = True,
+    run_inference: bool = True,
+    gpu_id: Optional[int] = None,
+    extra_args: Optional[List[str]] = None,
 ) -> Dict[str, any]:
     """
     运行单个AlphaFold3预测
@@ -136,13 +150,18 @@ def run_single_prediction(
         env.pop('CUDA_VISIBLE_DEVICES', None)
         gpu_info = "CPU"
     
-    # 构建命令
-    cmd = [
-        'python', af3_script,
-        '--input_dir', os.path.dirname(json_file),
-        '--output_dir', job_output_dir,
-        '--max_template_date', max_template_date
-    ]
+    # 构建命令（参照官方 CLI）
+    cmd = ['python', af3_script,
+           '--json_path', json_file,
+           '--model_dir', model_dir,
+           '--output_dir', job_output_dir]
+    if public_db_dir:
+        cmd += ['--public_db_dir', public_db_dir]
+    # 控制是否运行数据流水线与推理
+    cmd += ['--run_data_pipeline', 'true' if run_data_pipeline else 'false']
+    cmd += ['--run_inference', 'true' if run_inference else 'false']
+    if extra_args:
+        cmd += list(extra_args)
     
     start_time = time.time()
     logging.info(f"开始预测: {base_name} -> {gpu_info}")
@@ -202,9 +221,13 @@ def run_batch_predictions(
     input_dir: str,
     output_dir: str,
     af3_script: str,
+    model_dir: str,
+    public_db_dir: Optional[str] = None,
     max_concurrent: int = 4,
-    max_template_date: str = "3000-12-01",
-    verbose: bool = False
+    run_data_pipeline: bool = True,
+    run_inference: bool = True,
+    verbose: bool = False,
+    extra_args: Optional[List[str]] = None,
 ) -> Dict[str, List]:
     """
     批量运行AlphaFold3预测
@@ -280,8 +303,12 @@ def run_batch_predictions(
                 json_file,
                 output_dir,
                 af3_script,
-                max_template_date,
-                gpu_id
+                model_dir,
+                public_db_dir,
+                run_data_pipeline,
+                run_inference,
+                gpu_id,
+                extra_args
             ): (json_file, gpu_id)
             for json_file, gpu_id in tasks
         }
@@ -390,15 +417,50 @@ def main():
         help="AlphaFold3脚本路径（默认: /data/AlphaFold/alphafold3/run_alphafold.py）"
     )
     parser.add_argument(
+        "--model_dir",
+        required=True,
+        help="AlphaFold3 模型参数目录（必填）"
+    )
+    parser.add_argument(
+        "--public_db_dir",
+        help="公共数据库目录（可选，用于数据流水线）"
+    )
+    parser.add_argument(
         "--max_concurrent",
         type=int,
         default=4,
         help="最大并发任务数（默认: 4）"
     )
     parser.add_argument(
-        "--max_template_date",
-        default="3000-12-01",
-        help="最大模板日期（默认: 3000-12-01）"
+        "--run_data_pipeline",
+        dest="run_data_pipeline",
+        action="store_true",
+        help="运行数据流水线（默认开启）"
+    )
+    parser.add_argument(
+        "--no_run_data_pipeline",
+        dest="run_data_pipeline",
+        action="store_false",
+        help="禁用数据流水线"
+    )
+    parser.set_defaults(run_data_pipeline=True)
+    parser.add_argument(
+        "--run_inference",
+        dest="run_inference",
+        action="store_true",
+        help="运行推理（默认开启）"
+    )
+    parser.add_argument(
+        "--no_run_inference",
+        dest="run_inference",
+        action="store_false",
+        help="禁用推理"
+    )
+    parser.set_defaults(run_inference=True)
+    parser.add_argument(
+        "--extra_args",
+        nargs=argparse.REMAINDER,
+        help="传递给 run_alphafold.py 的其他参数（放在 -- 后）"
     )
     parser.add_argument(
         "--verbose", 
@@ -421,12 +483,16 @@ def main():
     
     # 运行批量预测
     results = run_batch_predictions(
-        args.input_dir,
-        args.output_dir,
-        args.af3_script,
-        args.max_concurrent,
-        args.max_template_date,
-        args.verbose
+        input_dir=args.input_dir,
+        output_dir=args.output_dir,
+        af3_script=args.af3_script,
+        model_dir=args.model_dir,
+        public_db_dir=args.public_db_dir,
+        max_concurrent=args.max_concurrent,
+        run_data_pipeline=args.run_data_pipeline,
+        run_inference=args.run_inference,
+        verbose=args.verbose,
+        extra_args=(args.extra_args or [])
     )
     
     # 生成总结报告
