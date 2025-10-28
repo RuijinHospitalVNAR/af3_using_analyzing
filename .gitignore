@@ -1,0 +1,177 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# AlphaFold3 specific
+results/
+outputs/
+analysis/
+*.pdb
+*.cif
+*.json
+*.fasta
+*.a3m
+*.hhr
+*.hhm
+*.cs219
+*.cs219.small
+*.cs219.standard
+*.cs219.large
+*.cs219.full
+*.cs219.small.pkl
+*.cs219.standard.pkl
+*.cs219.large.pkl
+*.cs219.full.pkl
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.npz
+*.npy
+*.mmcif
+*.mmtf
+*.cif.gz
+*.pdb.gz
+*.mmcif.gz
+*.mmtf.gz
+*.a3m.gz
+*.hhr.gz
+*.hhm.gz
+*.cs219.gz
+*.pkl.gz
+*.pickle.gz
+*.h5.gz
+*.hdf5.gz
+*.npz.gz
+*.npy.gz
+*.mmcif.gz
+*.mmtf.gz
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Backup files
+*.bak
+*.backup
+*.old
